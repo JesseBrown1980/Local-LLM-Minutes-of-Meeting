@@ -41,7 +41,7 @@
 
   <div id="meetingModal" class="modal">
       <div class="modal-content">
-        <form action="/upload" method="post" enctype="multipart/form-data">
+        <form action="/api/tasks/upload" method="post" enctype="multipart/form-data">
           <span class="close-button" id="meetingCloseButton">&times;</span>
           <div class="modal-body">
               <div class="upload-container">
@@ -70,7 +70,7 @@
             event.preventDefault();
             var formData = new FormData(this);
             $.ajax({
-                url: '/upload',
+                url: '/api/tasks/upload',
                 type: 'POST',
                 data: formData,
                 contentType: false,
