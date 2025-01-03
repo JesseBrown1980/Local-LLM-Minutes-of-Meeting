@@ -3,6 +3,7 @@ from flask import Flask, render_template, request, redirect, jsonify, send_from_
 from flask_cors import CORS
 import subprocess
 from werkzeug.utils import secure_filename
+from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import LoginManager, UserMixin, login_user, login_required, current_user
 from mongoengine import connect
 from models import User, AudioTask
@@ -123,40 +124,84 @@ def index():
 @login_manager.user_loader
 def load_user(user_id):
     return User.objects(id=user_id).first()
+
 @app.route('/upload', methods=['POST'])
+@login_required
 def upload_file():
     try:
         logger.debug("Starting file upload process...")
-        # Check and install ffmpeg if needed
         check_and_install_ffmpeg()
 
         if 'file' not in request.files:
             return redirect(request.url)
         
         file = request.files['file']
-        logger.debug(f"Received file: {file.filename}")
         if file.filename == '' or not allowed_file(file.filename):
             return redirect(request.url)
         
         filename = secure_filename(file.filename)
-        # Secure the filename and create upload folder if it doesn't exist
-        filename = secure_filename(file.filename)
+        
+        # Create temporary file for processing
+        temp_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-        # Save file to the designated folder
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(file_path)
-        logger.debug(f"File saved to: {file_path}")
-        audio_path = convert_to_wav(file_path)
-        logger.debug(f"Converted to WAV: {audio_path}")
+        file.save(temp_path)
         
-        logger.debug("Attempting to queue Celery task...")
-        task = process_audio.delay(audio_path, filename)
-        logger.debug(f"Task queued successfully with ID: {task.id}")
+        # Convert to WAV for processing
+        audio_path = convert_to_wav(temp_path)
         
+        # Queue Celery task
+        task = process_audio.delay(audio_path, filename, str(current_user.id))
+        
+        # Create AudioTask entry
+        audio_task = AudioTask(
+            task_id=task.id,
+            user=current_user.id,
+            status='PENDING'
+        )
+        audio_task.save()
+        
+        # Clean up temporary files
+        os.remove(temp_path)
+        if temp_path != audio_path:
+            os.remove(audio_path)
+            
         return jsonify({'task_id': task.id})
     except Exception as e:
         logger.exception("Error in upload_file")
         return jsonify({'error': str(e)}), 500
+    
+@app.route('/register', methods=['POST'])
+def register():
+    data = request.get_json()
+    
+    # Check if user already exists
+    if User.objects(username=data['username']).first():
+        return jsonify({'error': 'Username already exists'}), 400
+    
+    if User.objects(email=data['email']).first():
+        return jsonify({'error': 'Email already exists'}), 400
+    
+    # Create new user with hashed password
+    user = User(
+        username=data['username'],
+        email=data['email']
+    )
+    user.set_password(data['password'])
+    user.save()
+    
+    return jsonify({'message': 'User created successfully'})
+
+@app.route('/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    user = User.objects(username=data['username']).first()
+    
+    if user and user.check_password(data['password']):
+        login_user(user)
+        return jsonify({'message': 'Logged in successfully'})
+    
+    return jsonify({'error': 'Invalid credentials'}), 401
+
 
 if __name__ == '__main__':
     print("Starting Flask app...")
