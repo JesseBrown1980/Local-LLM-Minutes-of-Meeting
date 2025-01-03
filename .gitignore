@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+*$py.class
+
+media_storage
+temp
+celery.logs
+data
+db
+models
+
+venv
