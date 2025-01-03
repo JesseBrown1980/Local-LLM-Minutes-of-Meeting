@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import axios from "axios";
 import { authService } from "../services/auth.service";
+import { useNavigate, useLocation } from "react-router-dom";
 
 interface User {
   id: string;
@@ -12,6 +13,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  getToken: () => string | null;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -23,6 +25,43 @@ export function useAuth() {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+
+    const navigate = useNavigate();
+    const location = useLocation();
+
+    // Check for existing token on mount
+    useEffect(() => {
+      const checkAuth = async () => {
+        const token = authService.getToken();
+        if (token) {
+          try {
+            setupAxiosInterceptor(token);
+
+            // Optional: Validate token with backend
+            // const response = await authService.validateToken();
+            // setUser(response.user);
+
+            // For now, we'll parse the token (if it's a JWT)
+            const payload = JSON.parse(atob(token.split(".")[1]));
+            setUser({
+              id: payload.sub, // or however your JWT is structured
+              email: payload.email,
+            });
+
+            // Redirect to home if on login/register page
+            if (["/login", "/register"].includes(location.pathname)) {
+              navigate("/");
+            }
+          } catch (error) {
+            console.error("Token validation failed:", error);
+            authService.removeToken();
+          }
+        }
+        setLoading(false);
+      };
+
+      checkAuth();
+    }, [navigate, location]);
 
   // Check for existing token on mount
   useEffect(() => {
@@ -103,11 +142,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  const getToken = () => {
+    return authService.getToken();
+  }
+
   const value = {
     user,
     login,
     register,
     logout,
+    getToken
   };
 
   if (loading) {
