@@ -7,7 +7,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import LoginManager, UserMixin, login_user, login_required, current_user
 from mongoengine import connect
 from models import User, AudioTask
-from flask_jwt_extended import create_access_token, JWTManager
+from flask_jwt_extended import create_access_token, JWTManager, jwt_required, get_jwt_identity
 from random_username.generate import generate_username
 
 from celery import Celery
@@ -16,12 +16,18 @@ from utils import convert_to_wav
 
 from global_variables import BASE_DATA_UPLOADED_RECORDINGS_DIRECTORY
 
-# Connect to MongoDB
-connect('meeting_minutes_db', host='mongodb://localhost:27017')
-
-logging.basicConfig(level=logging.INFO) #logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG) #logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+# Reduce MongoDB logging
+logging.getLogger('pymongo').setLevel(logging.WARNING)
+logging.getLogger('mongoengine').setLevel(logging.WARNING)
 
+# Connect to MongoDB
+try:
+    connect('Local-Minutes-Of-Meetings', host='mongodb://localhost:27017')
+    logger.info("Successfully connected to MongoDB")
+except Exception as e:
+    logger.error(f"Failed to connect to MongoDB: {e}")
 def make_celery(app):
     broker_url = "amqp://Fairweather:test1234@127.0.0.1:5672/cherry_broker"
     celery = Celery(
@@ -71,6 +77,10 @@ CORS(app, resources={
 })
 # Initialize JWT
 app.config['JWT_SECRET_KEY'] = 'udgqiohqw9d7102e9o`==2e8djdpqiwdhqp;3534qwc08e2' 
+
+# Set secret key for sessions
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', "iuhys*IQ)XP546513cCOISXshcosxaoschapsa")
+
 jwt = JWTManager(app)
 # Update app config with broker URL
 app.config.update(
@@ -140,9 +150,16 @@ def load_user(user_id):
     return User.objects(id=user_id).first()
 
 @app.route('/api/tasks/upload', methods=['POST'])
-@login_required
+@jwt_required()
 def upload_file():
     try:
+        current_user_id = get_jwt_identity() 
+        logger.info(f"Current user {current_user_id}")
+        user = User.objects(id=current_user_id).first()
+    
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+    
         logger.debug("Starting file upload process...")
         check_and_install_ffmpeg()
 
@@ -186,12 +203,24 @@ def upload_file():
     
 @app.route('/api/auth/register', methods=['POST'])
 def register():
+    # Get and validate request data
     data = request.get_json()
-    print("REGISTER", data['email', data['password']])
+    if not data:
+        logger.error("No JSON data received")
+        return jsonify({'error': 'No data provided'}), 400
+    
+     # Log registration attempt
+    logger.info(f"Registration attempt for email: {data.get('email')}")
+
+    # Check required fields
+    if not all(k in data for k in ['email', 'password']):
+        logger.error("Missing required fields")
+        return jsonify({'error': 'Email and password are required'}), 400
+
     # Check if user already exists   
     if User.objects(email=data['email']).first():
         return jsonify({'error': 'Email already exists'}), 400
-    username = generate_username() 
+    username = generate_username()[0]
     try:
         # Create new user with hashed password
         user = User(
@@ -200,8 +229,8 @@ def register():
         )
         user.set_password(data['password'])
         user.save()
-        
-                # Create access token
+        print("USER", user)
+        # Create access token
         access_token = create_access_token(identity=str(user.id))
         
         return jsonify({
@@ -212,18 +241,46 @@ def register():
             }
         }), 201
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+         # Log the full error
+        logger.error(f"Registration error: {str(e)}", exc_info=True)
+        return jsonify({'error': 'Registration failed. Please try again.'}), 500
 
 @app.route('/api/auth/login', methods=['POST'])
 def login():
-    data = request.get_json()
-    user = User.objects(username=data['username']).first()
+    try:
+        # Get and validate request data
+        data = request.get_json()
+        if not data:
+            logger.error("No JSON data received")
+            return jsonify({'error': 'No data provided'}), 400
     
-    if user and user.check_password(data['password']):
-        login_user(user)
-        return jsonify({'message': 'Logged in successfully'})
+        # Check required fields
+        if not all(k in data for k in ['email', 'password']):
+            logger.error("Missing required fields")
+            return jsonify({'error': 'Email and password are required'}), 400
     
-    return jsonify({'error': 'Invalid credentials'}), 401
+        user = User.objects(email=data['email']).first()
+    
+        if user and user.check_password(data['password']):
+            # Create access token
+            access_token = create_access_token(identity=str(user.id))
+            
+            # Login user for session
+            login_user(user)
+            
+            return jsonify({
+                'token': access_token,
+                'user': {
+                    'id': str(user.id),
+                    'email': user.email
+                }
+            })
+    
+        return jsonify({'error': 'Invalid credentials'}), 401
+        
+    except Exception as e:
+        logger.error(f"Login error: {str(e)}")
+        return jsonify({'error': 'Login failed'}), 500
 
 
 if __name__ == '__main__':
