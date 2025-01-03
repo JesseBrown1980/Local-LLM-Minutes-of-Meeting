@@ -68,6 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const register = async (email: string, password: string) => {
     try {
+        
       const response = await authService.register(email, password);
 
       // Save the token
