@@ -7,8 +7,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import LoginManager, UserMixin, login_user, login_required, current_user
 from mongoengine import connect
 from models import User, AudioTask
-import gridfs
-import io
+from flask_jwt_extended import create_access_token, JWTManager
+from random_username.generate import generate_username
 
 from celery import Celery
 import logging
@@ -19,7 +19,7 @@ from global_variables import BASE_DATA_UPLOADED_RECORDINGS_DIRECTORY
 # Connect to MongoDB
 connect('meeting_minutes_db', host='mongodb://localhost:27017')
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO) #logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 def make_celery(app):
@@ -57,7 +57,21 @@ def make_celery(app):
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = BASE_DATA_UPLOADED_RECORDINGS_DIRECTORY
 app.config['ALLOWED_EXTENSIONS'] = {'mp4', 'wav', 'mp3'}
-CORS(app)
+# Configure CORS
+ALLOWED_ORIGINS = os.environ.get('ALLOWED_ORIGINS', 'http://localhost:3000').split(',')
+CORS(app, resources={
+    r"/api/*": {
+        "origins": ALLOWED_ORIGINS,
+        "methods": ["GET", "POST", "PUT", "DELETE"],
+        "allow_headers": ["Content-Type", "Authorization"],
+        "expose_headers": ["Content-Type"],
+        "supports_credentials": True,
+        "max_age": 120
+    }
+})
+# Initialize JWT
+app.config['JWT_SECRET_KEY'] = 'udgqiohqw9d7102e9o`==2e8djdpqiwdhqp;3534qwc08e2' 
+jwt = JWTManager(app)
 # Update app config with broker URL
 app.config.update(
     broker_url='amqp://Fairweather:test1234@127.0.0.1:5672/cherry_broker',  # New style key
@@ -125,7 +139,7 @@ def index():
 def load_user(user_id):
     return User.objects(id=user_id).first()
 
-@app.route('/upload', methods=['POST'])
+@app.route('/api/tasks/upload', methods=['POST'])
 @login_required
 def upload_file():
     try:
@@ -170,28 +184,37 @@ def upload_file():
         logger.exception("Error in upload_file")
         return jsonify({'error': str(e)}), 500
     
-@app.route('/register', methods=['POST'])
+@app.route('/api/auth/register', methods=['POST'])
 def register():
     data = request.get_json()
-    
-    # Check if user already exists
-    if User.objects(username=data['username']).first():
-        return jsonify({'error': 'Username already exists'}), 400
-    
+    print("REGISTER", data['email', data['password']])
+    # Check if user already exists   
     if User.objects(email=data['email']).first():
         return jsonify({'error': 'Email already exists'}), 400
-    
-    # Create new user with hashed password
-    user = User(
-        username=data['username'],
-        email=data['email']
-    )
-    user.set_password(data['password'])
-    user.save()
-    
-    return jsonify({'message': 'User created successfully'})
+    username = generate_username() 
+    try:
+        # Create new user with hashed password
+        user = User(
+            username=username,
+            email=data['email'],
+        )
+        user.set_password(data['password'])
+        user.save()
+        
+                # Create access token
+        access_token = create_access_token(identity=str(user.id))
+        
+        return jsonify({
+            'token': access_token,
+            'user': {
+                'id': str(user.id),
+                'email': user.email
+            }
+        }), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
-@app.route('/login', methods=['POST'])
+@app.route('/api/auth/login', methods=['POST'])
 def login():
     data = request.get_json()
     user = User.objects(username=data['username']).first()
