@@ -11,14 +11,17 @@ export default function Register() {
   const auth = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
+    
     e.preventDefault();
     if (password !== confirmPassword) {
       return setError("Passwords do not match");
     }
+    
     try {
       await auth?.register(email, password);
       navigate("/");
     } catch (err) {
+        console.log(err)
       setError("Failed to create an account");
     }
   };
