@@ -1,12 +1,13 @@
+import os
 from celery import current_app as celery
+
+from models import AudioTask
 from speech import get_speech_transcription
 from summary import get_minutes_of_meeting
-import time
-
-print("CELERY", celery.conf.broker_url)
 
 @celery.task(bind=True)
 def process_audio(self, audio_path, filename, user_id):
+    audio_task = None
     try:
         task_id = self.request.id
         audio_task = AudioTask.objects(task_id=task_id).first()
@@ -33,7 +34,8 @@ def process_audio(self, audio_path, filename, user_id):
         audio_task.save()
         
         # Clean up local file
-        os.remove(audio_path)
+        if os.path.exists(audio_path):
+            os.remove(audio_path)
         
         self.update_state(state='SUCCESS', meta={
             'info': 'Summary Ready.',

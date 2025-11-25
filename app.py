@@ -116,10 +116,11 @@ def check_and_install_ffmpeg():
 @app.route('/check_task/<task_id>')
 def check_task(task_id):
     task = process_audio.AsyncResult(task_id)
+    info = task.info or {}
     response = {
         'status': task.state,
-        'info': task.info.get('info', 'COMPLETED'),
-        'filename': task.info.get('audio_filename', '')
+        'info': info.get('info', 'PENDING'),
+        'filename': info.get('audio_filename', '')
     }
     return jsonify(response)
 
@@ -130,11 +131,24 @@ def send_audio(filename):
 @app.route('/results/<task_id>')
 def results(task_id):
     task = process_audio.AsyncResult(task_id)
+    result = task.result or {}
     if task.state == 'SUCCESS':
-        result = task.result
-        file_type = 'video' if result['audio_filename'].endswith(('.mp4', '.mov', '.avi')) else 'audio'
-        return render_template('result.html', minutes_of_meeting=result['summary'], recording_status = "Completed", recording_filename = result['audio_filename'], audio_path=os.path.join('/audio', result['audio_filename']), file_type=file_type)
-    return render_template('result.html', minutes_of_meeting=result['summary'], recording_status = "Unknown", recording_filename = result['audio_filename'], audio_path=os.path.join('/audio', "#"))
+        file_type = 'video' if result.get('audio_filename', '').endswith(('.mp4', '.mov', '.avi')) else 'audio'
+        return render_template(
+            'result.html',
+            minutes_of_meeting=result.get('summary', ''),
+            recording_status="Completed",
+            recording_filename=result.get('audio_filename', ''),
+            audio_path=os.path.join('/audio', result.get('audio_filename', '')),
+            file_type=file_type,
+        )
+    return render_template(
+        'result.html',
+        minutes_of_meeting=result.get('summary', ''),
+        recording_status=task.state,
+        recording_filename=result.get('audio_filename', ''),
+        audio_path=os.path.join('/audio', "#"),
+    )
 
 @app.route('/', methods=['GET'])
 def index():
