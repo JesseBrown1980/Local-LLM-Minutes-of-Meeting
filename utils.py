@@ -9,7 +9,7 @@ def convert_to_wav(input_file_path):
     os.makedirs(BASE_DATA_CONVERTED_RECORDINGS_DIRECTORY, exist_ok=True)
     
     # Determine MIME type
-    mime_type, encoding = guess_type(input_file_path)
+    mime_type, _ = guess_type(input_file_path)
     if mime_type is None:
         print(f"Could not determine the MIME type of the file: {input_file_path}")
         return ""
@@ -20,7 +20,7 @@ def convert_to_wav(input_file_path):
     output_file_path = os.path.join(BASE_DATA_CONVERTED_RECORDINGS_DIRECTORY, filename + ".wav")
 
     # FFmpeg command
-    command = ["ffmpeg", "-i", input_file_path]
+    command = ["ffmpeg", "-y", "-i", input_file_path]
 
     if main_type == 'audio':
         command.extend(["-ac", "1", "-ar", "16000", "-acodec", "pcm_s16le"])
@@ -30,7 +30,7 @@ def convert_to_wav(input_file_path):
         print(f"Unsupported MIME main type: {main_type}")
         return ""
     
-    command.extend([output_file_path, "-y"])
+    command.append(output_file_path)
 
     # Execute FFmpeg command
     try:
