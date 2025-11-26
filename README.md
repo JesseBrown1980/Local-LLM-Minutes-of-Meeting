@@ -2,16 +2,22 @@
 
 ### Table of Contents
 
-| Sr. No. | Topic                                 | Link                    |
-| ------- | ------------------------------------- | ----------------------- |
-| 0.      | Introduction and "Why" of the project | [Link will come here]() |
-| 1.      | Setup and Installation                | [Link will come here]() |
-| 2.      | Features                              | [Another Link]()        |
-| 3.      | Demo and Application Screenshots      | [Another Link]()        |
-| 4.      | Approach and Implementation*          | [Another Link]()        |
-| 5.      | Recent Updates and Future Directions  | [Another Link]()        |
-| 6.      | Contributions                         | [Another Link]()        |
-| 7.      | Issues/Troubleshooting                | [Another Link]()        |
+| Sr. No. | Topic                                 | Link                                                                 |
+| ------- | ------------------------------------- | -------------------------------------------------------------------- |
+| 0.      | Introduction and "Why" of the project | [Link](#0-introduction-and-why-of-the-project)                       |
+| 1.      | Setup and Installation                | [Link](#1-setup-and-installation)                                    |
+| 2.      | Features                              | [Link](#2-features-sparkles)                                         |
+| 3.      | Demo and Application Screenshots      | [Link](#sample-screenshots-of-application)                           |
+| 4.      | Approach and Implementation*          | [Link](#approach-and-implementation-bulb)                            |
+| 5.      | Recent Updates and Future Directions  | [Link](#future-scope-and-enhancements-crystal_ball)                  |
+| 6.      | Contributions                         | [Link](#contributions-welcome)                                       |
+| 7.      | Issues/Troubleshooting                | [Link](#troubleshooting-bug)                                         |
+| 8.      | Technical Stack                       | [Link](#technical-stack-computer)                                    |
+| 9.      | Use Cases and Applications            | [Link](#use-cases-and-applications-white_check_mark)                 |
+| 10.     | Running the Tool Locally              | [Link](#running-the-tool-locally-slot_machine)                       |
+| 11.     | Phase 2 - Real-Time Transcriptions    | [Link](#phase-2---real-time-transcriptions-next_track_button)        |
+| 12.     | Stay Updated                          | [Link](#stay-updated)                                                |
+| 13.     | Contributions Welcome                 | [Link](#contributions-welcome)                                       |
 
 ## 0. Introduction and "Why" of the project
 
