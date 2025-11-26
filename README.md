@@ -139,7 +139,7 @@ After you have updated the file, you will run the `setup.py` file to setup direc
 | QuantFactory/Phi-3-mini-128k-instruct-GGUF         | 1 GB - 8 GB  | 2.5 GB - 16 GB  |
 | bartowski/Phi-3-medium-128k-instruct-GGUF          | 3 GB - 14 GB | 6 GB - 18 GB    |
 
-You will need to modify the `global_varibables.py` file with the model name you choose and then run `setup.py` file which will automatically down the models you choose.
+Update the default model constants in `global_variables.py` with the model names you want to use, then run `setup.py` to download those selections automatically.
 
 ```python
 Line 32: DEFAULT_SPEECH_MODEL = "openai/whisper-small"
