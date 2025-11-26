@@ -4,7 +4,7 @@ from flask_cors import CORS
 import subprocess
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask_login import LoginManager, UserMixin, login_user, login_required, current_user
+from flask_login import LoginManager, login_user
 from mongoengine import connect
 from models import User, AudioTask
 from flask_jwt_extended import create_access_token, JWTManager, jwt_required, get_jwt_identity
@@ -167,7 +167,7 @@ def load_user(user_id):
 @jwt_required()
 def upload_file():
     try:
-        current_user_id = get_jwt_identity() 
+        current_user_id = get_jwt_identity()
         logger.info(f"Current user {current_user_id}")
         user = User.objects(id=current_user_id).first()
     
@@ -193,14 +193,15 @@ def upload_file():
         
         # Convert to WAV for processing
         audio_path = convert_to_wav(temp_path)
-        
+
         # Queue Celery task
-        task = process_audio.delay(audio_path, filename, str(current_user.id))
-        
+        user_id = str(user.id)
+        task = process_audio.delay(audio_path, filename, user_id)
+
         # Create AudioTask entry
         audio_task = AudioTask(
             task_id=task.id,
-            user=current_user.id,
+            user=user,
             status='PENDING'
         )
         audio_task.save()
